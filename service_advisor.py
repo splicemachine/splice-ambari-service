@@ -59,7 +59,7 @@ class HDP26SPLICEMACHINEServiceAdvisor(service_advisor.ServiceAdvisor):
             content = hbase_env["content"]
             SPLICE_PATH = "export HBASE_CLASSPATH=${HBASE_CLASSPATH}:/usr/lib/splicemachine/*"
             if "splicemachine" not in content:
-                SPLICE_PATH = "#Add pxf-hbase.jar to HBASE_CLASSPATH\n" + SPLICE_PATH
+                SPLICE_PATH = "#Add Splice Jars to HBASE_CLASSPATH\n" + SPLICE_PATH
                 content = "\n\n".join((content, SPLICE_PATH))
                 putHbaseEnvProperty = self.putProperty(configurations, "hbase-env", services)
                 putHbaseEnvProperty("content", content)
