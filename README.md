@@ -29,3 +29,12 @@ ambari-server restart
 http://127.0.0.1:8080/#/main/dashboard/metrics
 ```
 
+
+![alt text](docs/Add_Service.jpeg "Add Service")
+
+![alt text](docs/Add_Service_Wizard.jpeg "Add Service Wizard")
+
+![alt text](docs/Install_Start_And_Test.jpeg "Add Service Install Start and Test")
+
+![alt text](docs/Splice_Machine_Installed.jpeg "Splice Machine Installed")
+
