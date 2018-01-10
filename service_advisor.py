@@ -20,6 +20,7 @@ import os
 import re
 import socket
 import traceback
+import glob
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 STACKS_DIR = os.path.join(SCRIPT_DIR, '../../../../../stacks/')
@@ -63,6 +64,33 @@ class HDP26SPLICEMACHINEServiceAdvisor(service_advisor.ServiceAdvisor):
                 content = "\n\n".join((content, SPLICE_PATH))
                 putHbaseEnvProperty = self.putProperty(configurations, "hbase-env", services)
                 putHbaseEnvProperty("content", content)
+
+    # Update HIVE_AUX_JARS_PATH for hive
+    if "hive-env" in services["configurations"]:
+        hive_env = services['configurations']['hive-env']["properties"]
+        if "content" in hive_env:
+            content = hive_env["content"]
+            SPLICE_PATH = "export HIVE_AUX_JARS_PATH=${HIVE_AUX_JARS_PATH}:/usr/lib/splicemachine/"
+            if "splicemachine" not in content:
+                SPLICE_PATH = "#Add Splice Jars to HIVE_AUX_JARS_PATH\n" + SPLICE_PATH
+                content = "\n\n".join((content, SPLICE_PATH))
+                putHiveEnvProperty = self.putProperty(configurations, "hive-env", services)
+                putHiveEnvProperty("content", content)
+
+    # Update spark-defaults for spark
+    if "spark2-env" in services["configurations"]:
+        putSparkProperty = self.putProperty(configurations, "spark2-env", services)
+        spark_defaults = services['configurations']['spark2-env']["properties"]
+        splice_jars = ":".join([jar for jar in glob.glob('/usr/lib/splicemachine/*.jar')])
+        splice_driver_lib = "expirt spark.driver.extraLibraryPath = ${spark.driver.extraLibraryPath}:" + splice_jars + "\n"
+        splice_executor_lib = "export spark.executor.extraLibraryPath=${spark.executor.extraLibraryPath}:" + splice_jars + "\n"
+        splice_path = "\n".join((splice_driver_lib,splice_executor_lib))
+        content = "\n\n".join((content,splice_path))
+        putSparkProperty = self.putProperty(configurations, "spark2-defaults", services)
+        putSparkProperty("content",content)
+
+
+
 
 
   def getServiceConfigurationsValidationItems(self, configurations, recommendedDefaults, services, hosts):
