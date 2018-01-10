@@ -31,12 +31,9 @@ ambari-server restart
 ```
 http://127.0.0.1:8080/#/main/dashboard/metrics
 ```
+7) Follow the steps to install a servive.
 
-
-![alt text](docs/Add_Service.jpeg "Add Service")
-
-![alt text](docs/Add_Service_Wizard.jpeg "Add Service Wizard")
-
-![alt text](docs/Install_Start_And_Test.jpeg "Add Service Install Start and Test")
-
-![alt text](docs/Splice_Machine_Installed.jpeg "Splice Machine Installed")
+<img src="docs/Add_Service.jpeg" alt="Add Service" width="200" height="200">
+<img src="docs/Add_Service_Wizard.jpeg" alt="Add Service Wizard" width="400" height="200">
+<img src="docs/Install_Start_And_Test.jpeg" alt="Add Service Install Start and Test" width="400" height="200">
+<img src="docs/Splice_Machine_Installed.jpeg" alt="Splice Machine Installed" width="100" height="200">
