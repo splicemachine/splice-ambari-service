@@ -1,6 +1,14 @@
 # splice-ambari-service
 An Apache Ambari Service For Splice Machine
 
+This is based on the creation of a custom service outlined here. 
+
+https://cwiki.apache.org/confluence/display/AMBARI/Defining+a+Custom+Service
+
+Existing Example Services can be located here.  
+
+https://github.com/apache/ambari/tree/trunk/ambari-server/src/main/resources/common-services
+
 #### Steps to deploy to HDP Virtual Machine.
 
 1) Download HDP Sandbox for VirtualBox. https://hortonworks.com/tutorial/sandbox-deployment-and-install-guide/section/1/
