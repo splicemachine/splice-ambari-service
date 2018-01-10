@@ -20,9 +20,10 @@ import os
 import re
 import socket
 import traceback
+import glob
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-STACKS_DIR = os.path.join(SCRIPT_DIR, '../../../../../stacks/')
+STACKS_DIR = os.path.join(SCRIPT_DIR, '../../../stacks/')
 PARENT_FILE = os.path.join(STACKS_DIR, 'service_advisor.py')
 
 try:
@@ -32,16 +33,36 @@ except Exception as e:
   traceback.print_exc()
   print "Failed to load parent"
 
-class HDP26SPLICEMACHINEServiceAdvisor(service_advisor.ServiceAdvisor):
+class SPLICEMACHINE251ServiceAdvisor(service_advisor.ServiceAdvisor):
 
   def __init__(self, *args, **kwargs):
-    self.as_super = super(HDP26SPLICEMACHINEServiceAdvisor, self)
+    self.as_super = super(SPLICEMACHINE251ServiceAdvisor, self)
     self.as_super.__init__(*args, **kwargs)
 
   def colocateService(self, hostsComponentsMap, serviceComponents):
-    pass
+      pass
+
+  def getServiceComponentLayoutValidations(self, services, hosts):
+      print "getServiceComponentLayoutValidations"
+      return []
+
 
   def getServiceConfigurationRecommendations(self, configurations, clusterData, services, hosts):
+    # Update HBase Classpath
+    print "getServiceConfigurationRecommendations",services
+    splice_jars = ":".join([jar for jar in glob.glob('/usr/lib/splicemachine/*.jar')])
+    if "hbase-env" in services["configurations"]:
+        hbase_env = services["configurations"]["hbase-env"]["properties"]
+        if "content" in hbase_env:
+          content = hbase_env["content"]
+          SPLICE_PATH = "export HBASE_CLASSPATH=${HBASE_CLASSPATH}".join(splice_jars)
+          if "splicemachine" not in content:
+            print "Updating Hbase Classpath"
+            SPLICE_PATH = "#Add Splice Jars to HBASE_CLASSPATH\n" + SPLICE_PATH
+            content = "\n\n".join((content, SPLICE_PATH))
+            print "content: " + content
+            putHbaseEnvProperty = self.putProperty(configurations, "hbase-env", services)
+            putHbaseEnvProperty("content", content)
 
     # Update HDFS properties in core-site
     if "core-site" in services["configurations"]:
@@ -52,40 +73,65 @@ class HDP26SPLICEMACHINEServiceAdvisor(service_advisor.ServiceAdvisor):
         if property not in core_site or core_site[property] != desired_value:
           putCoreSiteProperty(property, desired_value)
 
-    # Update HBase Classpath
-    if "hbase-env" in services["configurations"]:
-        hbase_env = services["configurations"]["hbase-env"]["properties"]
-        if "content" in hbase_env:
-            content = hbase_env["content"]
-            SPLICE_PATH = "export HBASE_CLASSPATH=${HBASE_CLASSPATH}:/usr/lib/splicemachine/*"
-            if "splicemachine" not in content:
-                SPLICE_PATH = "#Add Splice Jars to HBASE_CLASSPATH\n" + SPLICE_PATH
-                content = "\n\n".join((content, SPLICE_PATH))
-                putHbaseEnvProperty = self.putProperty(configurations, "hbase-env", services)
-                putHbaseEnvProperty("content", content)
+    # Update hbase-site properties in hbase-site
+    if "hbase-site" in services["configurations"]:
+      hbase_site = services["configurations"]["hbase-site"]["properties"]
+      print "hbase-site", hbase_site
+      putHbaseSitePropertyAttributes = self.putPropertyAttribute(configurations, "hbase-site")
+      putHBaseSiteProperty = self.putProperty(configurations, "hbase-site", services)
+      putHbaseSitePropertyAttributes('hbase.coprocessor.regionserver.classes', 'delete', 'true')
+      putHBaseSiteProperty('hbase.coprocessor.region.classes','org.apache.ranger.authorization.hbase.RangerAuthorizationCoprocessor,com.splicemachine.hbase.RegionServerLifecycleObserver')
+      for property, desired_value in self.getHBaseSiteDesiredValues().iteritems():
+        print "property=" + property + ", desired_Value=" + desired_value
+        if property not in hbase_site or hbase_site[property] != desired_value:
+          print "write prop -> property=" + property + ", desired_Value=" + desired_value
+          putHBaseSiteProperty(property, desired_value)
 
+
+    # Update HIVE_AUX_JARS_PATH for hive
+    if "hive-env" in services["configurations"]:
+        hive_env = services['configurations']['hive-env']["properties"]
+        if "content" in hive_env:
+            content = hive_env["content"]
+            SPLICE_PATH = "export HIVE_AUX_JARS_PATH=${HIVE_AUX_JARS_PATH}:/usr/lib/splicemachine/"
+            if "splicemachine" not in content:
+                SPLICE_PATH = "#Add Splice Jars to HIVE_AUX_JARS_PATH\n" + SPLICE_PATH
+                content = "\n\n".join((content, SPLICE_PATH))
+                putHiveEnvProperty = self.putProperty(configurations, "hive-env", services)
+                putHiveEnvProperty("content", content)
+
+    # Update spark-defaults for spark
+    if "spark2-env" in services["configurations"]:
+        putSparkProperty = self.putProperty(configurations, "spark2-env", services)
+        spark_defaults = services['configurations']['spark2-env']["properties"]
+        splice_driver_lib = "export spark.driver.extraLibraryPath = ${spark.driver.extraLibraryPath}:" + splice_jars + "\n"
+        splice_executor_lib = "export spark.executor.extraLibraryPath=${spark.executor.extraLibraryPath}:" + splice_jars + "\n"
+        splice_path = "\n".join((splice_driver_lib,splice_executor_lib))
+        content = "\n\n".join((content,splice_path))
+        putSparkProperty = self.putProperty(configurations, "spark2-defaults", services)
+        putSparkProperty("content",content)
 
   def getServiceConfigurationsValidationItems(self, configurations, recommendedDefaults, services, hosts):
-
+      print "getServiceConfigurationsValidationItems"
+      return []
+#    print "getServiceConfigurationsValidationItems"
     # validate recommended properties in core-site
-    siteName = "core-site"
-    method = self.validateCoreSiteConfigurations
-    items = self.validateConfigurationsForSite(configurations, recommendedDefaults, services, hosts, siteName, method)
+#    siteName = "core-site"
+#    method = self.validateCoreSiteConfigurations
+#    items = self.validateConfigurationsForSite(configurations, recommendedDefaults, services, hosts, siteName, method)
 
-    siteName = "hdfs-site"
-    method = self.validateHDFSSiteConfigurations
-    resultItems = self.validateConfigurationsForSite(configurations, recommendedDefaults, services, hosts, siteName, method)
-    items.extend(resultItems)
+#    siteName = "hdfs-site"
+#    method = self.validateHDFSSiteConfigurations
+#    resultItems = self.validateConfigurationsForSite(configurations, recommendedDefaults, services, hosts, siteName, method)
+#    items.extend(resultItems)
 
-    siteName = "hbase-site"
-    method = self.validateHBaseSiteConfigurations
-    resultItems = self.validateConfigurationsForSite(configurations, recommendedDefaults, services, hosts, siteName, method)
-    items.extend(resultItems)
-
-    return items
-
+#    siteName = "hbase-site"
+#    method = self.validateHBaseSiteConfigurations
+#    resultItems = self.validateConfigurationsForSite(configurations, recommendedDefaults, services, hosts, siteName, method)
+#    items.extend(resultItems)
 
   def validateCoreSiteConfigurations(self, properties, recommendedDefaults, configurations, services, hosts):
+    print "validateCoreSiteConfigurations"
     core_site = properties
     validationItems = []
     for property, desired_value in self.getCoreSiteDesiredValues().iteritems():
@@ -95,6 +141,7 @@ class HDP26SPLICEMACHINEServiceAdvisor(service_advisor.ServiceAdvisor):
     return self.toConfigurationValidationProblems(validationItems, "core-site")
 
   def validateHDFSSiteConfigurations(self, properties, recommendedDefaults, configurations, services, hosts):
+      print "validateHDFSSiteConfigurations"
       hdfs_site = properties
       validationItems = []
       for property, desired_value in self.getHDFSSiteDesiredValues().iteritems():
@@ -104,9 +151,11 @@ class HDP26SPLICEMACHINEServiceAdvisor(service_advisor.ServiceAdvisor):
       return self.toConfigurationValidationProblems(validationItems, "hdfs-site")
 
   def validateHBaseSiteConfigurations(self, properties, recommendedDefaults, configurations, services, hosts):
+      print "validateHBaseSiteConfigurations"
       hbase_site = properties
       validationItems = []
       for property, desired_value in self.getHBaseSiteDesiredValues().iteritems():
+          print "->" + property + ":" + desired_value + ":" + hbase_site[property]
           if property not in hbase_site or hbase_site[property] != desired_value:
               message = "Splice Machine requires this property to be set to the recommended value of " + desired_value
               validationItems.append({"config-name": property, "item": self.getWarnItem(message)})
@@ -128,6 +177,7 @@ class HDP26SPLICEMACHINEServiceAdvisor(service_advisor.ServiceAdvisor):
 
   def getHBaseSiteDesiredValues(self):
     hbase_site_desired_values = {
+        "hbase.coprocessor.master.classes" : "org.apache.ranger.authorization.hbase.RangerAuthorizationCoprocessor,com.splicemachine.hbase.SpliceMasterObserver",
         "hbase.regionserver.global.memstore.size" : "0.25",
         "hfile.block.cache.size" : "0.25",
         "hbase.regionserver.handler.count" : "200",
@@ -137,13 +187,13 @@ class HDP26SPLICEMACHINEServiceAdvisor(service_advisor.ServiceAdvisor):
         "hbase.balancer.period" : "60000",
         "hbase.client.ipc.pool.size" : "10",
         "hbase.client.max.perregion.tasks" : "100",
-        "hbase.coprocessor.regionserver.classes" : "com.splicemachine.hbase.RegionServerLifecycleObserver",
+        "hbase.coprocessor.regionserver.classes" : "org.apache.ranger.authorization.hbase.RangerAuthorizationCoprocessor,com.splicemachine.hbase.RegionServerLifecycleObserver",
         "hbase.hstore.compaction.max.size" : "260046848",
         "hbase.hstore.compaction.min.size" : "16777216",
         "hbase.hstore.compaction.min" : "5",
         "hbase.hstore.defaultengine.compactionpolicy" : "com.splicemachine.compactions.SpliceDefaultCompactionPolicy",
         "hbase.hstore.defaultengine.compactor" : "com.splicemachine.compactions.SpliceDefaultCompactor",
-        "hbase.coprocessor.region.classes" : "com.splicemachine.hbase.MemstoreAwareObserver,com.splicemachine.derby.hbase.SpliceIndexObserver,com.splicemachine.derby.hbase.SpliceIndexEndpoint,com.splicemachine.hbase.RegionSizeEndpoint,com.splicemachine.si.data.hbase.coprocessor.TxnLifecycleEndpoint,com.splicemachine.si.data.hbase.coprocessor.SIObserver,com.splicemachine.hbase.BackupEndpointObserver",
+        "hbase.coprocessor.region.classes" : "org.apache.hadoop.hbase.security.access.SecureBulkLoadEndpoint,org.apache.ranger.authorization.hbase.RangerAuthorizationCoprocessor,com.splicemachine.hbase.MemstoreAwareObserver,com.splicemachine.derby.hbase.SpliceIndexObserver,com.splicemachine.derby.hbase.SpliceIndexEndpoint,com.splicemachine.hbase.RegionSizeEndpoint,com.splicemachine.si.data.hbase.coprocessor.TxnLifecycleEndpoint,com.splicemachine.si.data.hbase.coprocessor.SIObserver,com.splicemachine.hbase.BackupEndpointObserver",
         "hbase.htable.threads.max" : "96",
         "hbase.ipc.warn.response.size" : "-1",
         "hbase.ipc.warn.response.time" : "-1",
