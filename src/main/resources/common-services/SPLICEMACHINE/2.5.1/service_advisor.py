@@ -102,13 +102,12 @@ class SPLICEMACHINE251ServiceAdvisor(service_advisor.ServiceAdvisor):
 
     # Update spark-defaults for spark
     if "spark2-env" in services["configurations"]:
-        putSparkProperty = self.putProperty(configurations, "spark2-env", services)
         spark_defaults = services['configurations']['spark2-env']["properties"]
         splice_driver_lib = "export spark.driver.extraLibraryPath = ${spark.driver.extraLibraryPath}:" + splice_jars + "\n"
         splice_executor_lib = "export spark.executor.extraLibraryPath=${spark.executor.extraLibraryPath}:" + splice_jars + "\n"
         splice_path = "\n".join((splice_driver_lib,splice_executor_lib))
         content = "\n\n".join((content,splice_path))
-        putSparkProperty = self.putProperty(configurations, "spark2-defaults", services)
+        putSparkProperty = self.putProperty(configurations, "spark2-env", services)
         putSparkProperty("content",content)
 
   def getServiceConfigurationsValidationItems(self, configurations, recommendedDefaults, services, hosts):
