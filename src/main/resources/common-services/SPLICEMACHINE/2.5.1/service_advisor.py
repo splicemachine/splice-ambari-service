@@ -50,7 +50,7 @@ class SPLICEMACHINE251ServiceAdvisor(service_advisor.ServiceAdvisor):
   def getServiceConfigurationRecommendations(self, configurations, clusterData, services, hosts):
     # Update HBase Classpath
     print "getServiceConfigurationRecommendations",services
-    splice_jars = ":".join([jar for jar in glob.glob('/usr/lib/splicemachine/*.jar')])
+    splice_jars = ":".join([jar for jar in glob.glob('/var/lib/splicemachine/*.jar')])
     if "hbase-env" in services["configurations"]:
         hbase_env = services["configurations"]["hbase-env"]["properties"]
         if "content" in hbase_env:
@@ -93,7 +93,7 @@ class SPLICEMACHINE251ServiceAdvisor(service_advisor.ServiceAdvisor):
         hive_env = services['configurations']['hive-env']["properties"]
         if "content" in hive_env:
             content = hive_env["content"]
-            SPLICE_PATH = "export HIVE_AUX_JARS_PATH=${HIVE_AUX_JARS_PATH}:/usr/lib/splicemachine/"
+            SPLICE_PATH = "export HIVE_AUX_JARS_PATH=${HIVE_AUX_JARS_PATH}:/var/lib/splicemachine/"
             if "splicemachine" not in content:
                 SPLICE_PATH = "#Add Splice Jars to HIVE_AUX_JARS_PATH\n" + SPLICE_PATH
                 content = "\n\n".join((content, SPLICE_PATH))
@@ -102,13 +102,16 @@ class SPLICEMACHINE251ServiceAdvisor(service_advisor.ServiceAdvisor):
 
     # Update spark-defaults for spark
     if "spark2-env" in services["configurations"]:
-        spark_defaults = services['configurations']['spark2-env']["properties"]
+        spark2_env = services['configurations']['spark2-env']["properties"]
         splice_driver_lib = "export spark.driver.extraLibraryPath = ${spark.driver.extraLibraryPath}:" + splice_jars + "\n"
         splice_executor_lib = "export spark.executor.extraLibraryPath=${spark.executor.extraLibraryPath}:" + splice_jars + "\n"
         splice_path = "\n".join((splice_driver_lib,splice_executor_lib))
-        content = "\n\n".join((content,splice_path))
-        putSparkProperty = self.putProperty(configurations, "spark2-env", services)
-        putSparkProperty("content",content)
+        if 'content' in spark2_env:
+          spark_content = spark2_env["content"]
+          if "splicemachine" not in content:
+            spark_content = "\n\n".join((spark_content,splice_path))
+            putSparkProperty = self.putProperty(configurations, "spark2-env", services)
+            putSparkProperty("content",spark_content)
 
   def getServiceConfigurationsValidationItems(self, configurations, recommendedDefaults, services, hosts):
       print "getServiceConfigurationsValidationItems"
