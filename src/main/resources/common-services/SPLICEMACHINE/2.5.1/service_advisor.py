@@ -48,18 +48,18 @@ class SPLICEMACHINE251ServiceAdvisor(service_advisor.ServiceAdvisor):
 
 
   def getServiceConfigurationRecommendations(self, configurations, clusterData, services, hosts):
-    # Update HBase Classpath
+    #Update HBase Classpath
     print "getServiceConfigurationRecommendations",services
     splice_jars = ":".join([jar for jar in glob.glob('/var/lib/splicemachine/*.jar')])
     if "hbase-env" in services["configurations"]:
         hbase_env = services["configurations"]["hbase-env"]["properties"]
         if "content" in hbase_env:
           content = hbase_env["content"]
-          SPLICE_PATH = "export HBASE_CLASSPATH=${HBASE_CLASSPATH}".join(splice_jars)
+          HBASE_SPLICE_PATH = "export HBASE_CLASSPATH=${HBASE_CLASSPATH}" + splice_jars
           if "splicemachine" not in content:
             print "Updating Hbase Classpath"
-            SPLICE_PATH = "#Add Splice Jars to HBASE_CLASSPATH\n" + SPLICE_PATH
-            content = "\n\n".join((content, SPLICE_PATH))
+            HBASE_SPLICE_PATH = "#Add Splice Jars to HBASE_CLASSPATH\n" + HBASE_SPLICE_PATH
+            content = "\n\n".join((content, HBASE_SPLICE_PATH))
             print "content: " + content
             putHbaseEnvProperty = self.putProperty(configurations, "hbase-env", services)
             putHbaseEnvProperty("content", content)
@@ -92,26 +92,42 @@ class SPLICEMACHINE251ServiceAdvisor(service_advisor.ServiceAdvisor):
     if "hive-env" in services["configurations"]:
         hive_env = services['configurations']['hive-env']["properties"]
         if "content" in hive_env:
-            content = hive_env["content"]
-            SPLICE_PATH = "export HIVE_AUX_JARS_PATH=${HIVE_AUX_JARS_PATH}:/var/lib/splicemachine/"
-            if "splicemachine" not in content:
-                SPLICE_PATH = "#Add Splice Jars to HIVE_AUX_JARS_PATH\n" + SPLICE_PATH
-                content = "\n\n".join((content, SPLICE_PATH))
+            hive_content = hive_env["content"]
+            HIVE_SPLICE_PATH = "export HIVE_AUX_JARS_PATH=${HIVE_AUX_JARS_PATH}:/var/lib/splicemachine/"
+            if "splicemachine" not in hive_content:
+                HIVE_SPLICE_PATH = "#Add Splice Jars to HIVE_AUX_JARS_PATH\n" + HIVE_SPLICE_PATH
+                content = "\n\n".join((content, HIVE_SPLICE_PATH))
                 putHiveEnvProperty = self.putProperty(configurations, "hive-env", services)
                 putHiveEnvProperty("content", content)
 
     # Update spark-defaults for spark
     if "spark2-env" in services["configurations"]:
         spark2_env = services['configurations']['spark2-env']["properties"]
-        splice_driver_lib = "export spark.driver.extraLibraryPath = ${spark.driver.extraLibraryPath}:" + splice_jars + "\n"
+        splice_driver_lib = "export spark.driver.extraLibraryPath=${spark.driver.extraLibraryPath}:" + splice_jars + "\n"
         splice_executor_lib = "export spark.executor.extraLibraryPath=${spark.executor.extraLibraryPath}:" + splice_jars + "\n"
         splice_path = "\n".join((splice_driver_lib,splice_executor_lib))
         if 'content' in spark2_env:
           spark_content = spark2_env["content"]
-          if "splicemachine" not in content:
+          if "splicemachine" not in spark_content:
             spark_content = "\n\n".join((spark_content,splice_path))
             putSparkProperty = self.putProperty(configurations, "spark2-env", services)
             putSparkProperty("content",spark_content)
+
+   #update zookeeper configs
+    if 'zoo.cfg' in services['configurations']:
+      zoo_cfg = services['configurations']['zoo.cfg']["properties"]
+      print(zoo_cfg),zoo_cfg
+      putZooProperty = self.putProperty(configurations, "zoo.cfg", services)
+      putZooProperty('maxClientCnxns',0)
+      putZooProperty('maxSessionTimeout',120000)
+
+    if 'yarn-site' in services['configurations']:
+      yarn_site = services['configurations']['yarn-site']["properties"]
+      putYarnSiteProperty = self.putProperty(configurations,"yarn-site",services)
+      yarn_application_classpath = yarn_site['yarn.application.classpath'] + ',/var/lib/splicemachine/lib/'
+      yarn_nodemanager_aux_services_spark2_shuffle_classpath = yarn_site['yarn.nodemanager.aux-services.spark2_shuffle.classpath'] + ',/var/lib/splicemachine/lib/'
+      putYarnSiteProperty('yarn.application.classpath',yarn_application_classpath)
+      putYarnSiteProperty('yarn.nodemanager.aux-services.spark2_shuffle.classpath',yarn_nodemanager_aux_services_spark2_shuffle_classpath)
 
   def getServiceConfigurationsValidationItems(self, configurations, recommendedDefaults, services, hosts):
       print "getServiceConfigurationsValidationItems"
