@@ -44,10 +44,10 @@ http://127.0.0.1:8080/#/main/dashboard/metrics
 7) Follow the steps to install a servive.
 
 1.click the action button on the right buttom of the ambari page,then click on 'Add Services'
-<img src="docs/add_Services.jpeg" alt="Add Service" width="400" height="200">
+<img src="docs/add_services.jpeg" alt="Add Service" width="400" height="200">
 
 2.choose splice machine from the add service wizard
-<img src="docs/add_service_wizard.jpeg" alt="Add Service Wizard" width="400" height="200">
+<img src="docs/add_service_wizard.jpg" alt="Add Service Wizard" width="400" height="200">
 
 3.choose hosts needed to install splice machine,please only choose hosts that have hbase region server installed.Then click next.
 
@@ -58,11 +58,11 @@ http://127.0.0.1:8080/#/main/dashboard/metrics
 <img src="docs/custom_services.jpeg" alt="Custom Services" width="400" height="200">
 
 click 'yarn' tab then click 'advanced' tab,find advanced yarn-site then find 'yarn.application.classpath',click the button on the end of the line ( looks like 'refresh' button),so the value needed by splice machine can be set.
-<img src="docs/custom_services_example.jpeg" alt="custom yarn config" width="400" height="200">
+<img src="docs/custom_config_example.jpeg" alt="custom yarn config" width="400" height="200">
 
 click 'hive' tab then click 'advanced' tab,find 
 'advanced hive-env' then find 'hive-env template',click the button on the end of the line ( looks like 'refresh' button),so the value needed by splice machine can be set.
-<img src="docs/custom_services_hive.jpeg" alt="custom hive config" width="400" height="200">
+<img src="docs/custom_service_hive.jpeg" alt="custom hive config" width="400" height="200">
 
 these are the only two needed to click by hand,other configurations needed by splicemachine is handled by ambari.
 
