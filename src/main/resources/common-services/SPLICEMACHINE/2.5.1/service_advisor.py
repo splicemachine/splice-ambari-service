@@ -55,14 +55,11 @@ class SPLICEMACHINE251ServiceAdvisor(service_advisor.ServiceAdvisor):
         hbase_env = services["configurations"]["hbase-env"]["properties"]
         if "content" in hbase_env:
           content = hbase_env["content"]
-          HBASE_SPLICE_PATH = "export HBASE_CLASSPATH=/var/lib/splicemachine/jackson-core-2.6.5.jar:" \
-                              "/var/lib/splicemachine/jackson-annotations-2.6.5.jar:" \
-                              "/var/lib/splicemachine/jersey-server-2.22.2.jar:" \
-          "/var/lib/splicemachine/jackson-databind-2.6.5.jar:${HBASE_CLASSPATH}:" + splice_jars
+          HBASE_CLASSPATH_PREFIX = "export HBASE_CLASSPATH_PREFIX="+ splice_jars
           if "splicemachine" not in content:
             print "Updating Hbase Classpath"
-            HBASE_SPLICE_PATH = "#Add Splice Jars to HBASE_CLASSPATH\n" + HBASE_SPLICE_PATH
-            content = "\n\n".join((content, HBASE_SPLICE_PATH))
+            HBASE_CLASSPATH_PREFIX = "#Add Splice Jars to HBASE_PREFIX_CLASSPATH\n" + HBASE_CLASSPATH_PREFIX
+            content = "\n\n".join((content, HBASE_CLASSPATH_PREFIX))
             print "content: " + content
             putHbaseEnvProperty = self.putProperty(configurations, "hbase-env", services)
             putHbaseEnvProperty("content", content)
@@ -79,15 +76,10 @@ class SPLICEMACHINE251ServiceAdvisor(service_advisor.ServiceAdvisor):
     # Update hbase-site properties in hbase-site
     if "hbase-site" in services["configurations"]:
       hbase_site = services["configurations"]["hbase-site"]["properties"]
-      print "hbase-site", hbase_site
       putHbaseSitePropertyAttributes = self.putPropertyAttribute(configurations, "hbase-site")
       putHBaseSiteProperty = self.putProperty(configurations, "hbase-site", services)
-      putHbaseSitePropertyAttributes('hbase.coprocessor.regionserver.classes', 'delete', 'true')
-      putHBaseSiteProperty('hbase.coprocessor.region.classes','org.apache.ranger.authorization.hbase.RangerAuthorizationCoprocessor,com.splicemachine.hbase.RegionServerLifecycleObserver')
       for property, desired_value in self.getHBaseSiteDesiredValues().iteritems():
-        print "property=" + property + ", desired_Value=" + desired_value
         if property not in hbase_site or hbase_site[property] != desired_value:
-          print "write prop -> property=" + property + ", desired_Value=" + desired_value
           putHBaseSiteProperty(property, desired_value)
 
 
@@ -222,7 +214,7 @@ class SPLICEMACHINE251ServiceAdvisor(service_advisor.ServiceAdvisor):
         "hbase.htable.threads.max" : "96",
         "hbase.regions.slop" : "0.01",
         "hbase.regionserver.global.memstore.size.lower.limit" : "0.9",
-        "hbase.regionserver.lease.period" : "1200000",
+        "hbase.client.scanner.timeout.period" : "1200000",
         "hbase.regionserver.maxlogs" : "48",
         "hbase.regionserver.thread.compaction.large" : "1",
         "hbase.regionserver.thread.compaction.small" : "4",
